@@ -1,0 +1,23 @@
+@Possing_HostAddress = http://localhost:5094
+@token = 
+
+### Login
+POST {{Possing_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Me
+GET {{Possing_HostAddress}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Dashboard
+GET {{Possing_HostAddress}}/api/dashboard/summary
+Authorization: Bearer {{token}}
+
+### Products by code
+GET {{Possing_HostAddress}}/api/products/by-code/1001
+Authorization: Bearer {{token}}
