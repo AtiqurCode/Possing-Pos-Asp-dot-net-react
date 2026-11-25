@@ -5,7 +5,7 @@ using Possing.Models;
 
 namespace Possing.Services;
 
-public class SaleService(AppDbContext db, CustomerService customers)
+public class SaleService(AppDbContext db, CustomerService customers, SettingsService settings, InventoryService inventory)
 {
     public async Task<IReadOnlyList<SaleListItemDto>> GetAllAsync(DateTime? from = null, DateTime? to = null)
     {
@@ -26,6 +26,7 @@ public class SaleService(AppDbContext db, CustomerService customers)
                 s.CustomerMobile,
                 s.Total,
                 s.Discount,
+                s.TaxAmount,
                 s.PaymentMethod,
                 s.CreatedAt,
                 s.Items.Count))
@@ -62,6 +63,10 @@ public class SaleService(AppDbContext db, CustomerService customers)
         if (payment is not (PaymentMethods.Cash or PaymentMethods.Card))
             throw new InvalidOperationException("Payment method must be Cash or Card.");
 
+        var store = await settings.GetStoreAsync();
+        var taxRate = store.VatPercent;
+        var taxMode = store.TaxMode;
+
         await using var tx = await db.Database.BeginTransactionAsync();
 
         var customer = await customers.ResolveForSaleAsync(request.CustomerName, request.CustomerMobile);
@@ -72,6 +77,7 @@ public class SaleService(AppDbContext db, CustomerService customers)
             throw new InvalidOperationException("One or more products were not found or inactive.");
 
         var saleItems = new List<SaleItem>();
+        var stockHits = new List<(Product Product, int Qty, int Before)>();
         decimal subTotal = 0;
 
         foreach (var group in request.Items.GroupBy(i => i.ProductId))
@@ -84,8 +90,10 @@ public class SaleService(AppDbContext db, CustomerService customers)
             if (product.Quantity < qty)
                 throw new InvalidOperationException($"Insufficient stock for {product.Name}. Available: {product.Quantity}.");
 
+            var qtyBefore = product.Quantity;
             product.Quantity -= qty;
             product.UpdatedAt = DateTime.UtcNow;
+            stockHits.Add((product, qty, qtyBefore));
 
             var lineTotal = product.Price * qty;
             subTotal += lineTotal;
@@ -105,6 +113,8 @@ public class SaleService(AppDbContext db, CustomerService customers)
         if (discountAmount > subTotal)
             throw new InvalidOperationException("Discount cannot exceed subtotal.");
 
+        var (taxAmount, total) = ComputeTax(subTotal, discountAmount, taxRate, taxMode);
+
         var invoiceNo = await NextInvoiceNoAsync();
         var sale = new Sale
         {
@@ -117,7 +127,10 @@ public class SaleService(AppDbContext db, CustomerService customers)
             DiscountType = discountType,
             DiscountValue = request.DiscountValue,
             Discount = discountAmount,
-            Total = subTotal - discountAmount,
+            TaxRate = taxRate,
+            TaxAmount = taxAmount,
+            TaxMode = taxMode,
+            Total = total,
             PaymentMethod = payment,
             Items = saleItems
         };
@@ -126,6 +139,9 @@ public class SaleService(AppDbContext db, CustomerService customers)
             sale.CustomerMobile = null;
 
         db.Sales.Add(sale);
+
+        foreach (var hit in stockHits)
+            inventory.AddSoldMovement(hit.Product, hit.Qty, hit.Before, sale.Id, userId);
 
         if (customer is not null)
         {
@@ -138,6 +154,29 @@ public class SaleService(AppDbContext db, CustomerService customers)
         await tx.CommitAsync();
 
         return (await GetByIdAsync(sale.Id))!;
+    }
+
+    /// <summary>
+    /// Exclusive: add VAT on (subtotal - discount). Inclusive: shelf prices already include VAT — charge no extra.
+    /// </summary>
+    public static (decimal TaxAmount, decimal Total) ComputeTax(
+        decimal subTotal,
+        decimal discountAmount,
+        decimal taxRate,
+        string taxMode)
+    {
+        var afterDiscount = subTotal - discountAmount;
+        if (taxRate <= 0)
+            return (0m, afterDiscount);
+
+        if (string.Equals(taxMode, TaxModes.Inclusive, StringComparison.OrdinalIgnoreCase))
+        {
+            var taxAmount = Math.Round(afterDiscount * taxRate / (100m + taxRate), 2);
+            return (taxAmount, afterDiscount);
+        }
+
+        var exclusiveTax = Math.Round(afterDiscount * (taxRate / 100m), 2);
+        return (exclusiveTax, afterDiscount + exclusiveTax);
     }
 
     private async Task<string> NextInvoiceNoAsync()
@@ -172,6 +211,9 @@ public class SaleService(AppDbContext db, CustomerService customers)
         s.DiscountType,
         s.DiscountValue,
         s.Discount,
+        s.TaxRate,
+        s.TaxAmount,
+        s.TaxMode,
         s.Total,
         s.PaymentMethod,
         s.CreatedAt,

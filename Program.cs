@@ -5,9 +5,12 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Possing.Data;
+using Possing.Options;
 using Possing.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<StoreOptions>(builder.Configuration.GetSection(StoreOptions.SectionName));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -18,6 +21,8 @@ builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductImageService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<SettingsService>();
+builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<SaleService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ReportService>();
@@ -82,6 +87,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await DbSeeder.SeedAsync(db);
+    await scope.ServiceProvider.GetRequiredService<SettingsService>().EnsureSeededAsync();
 }
 
 if (app.Environment.IsDevelopment())

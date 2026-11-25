@@ -18,4 +18,5 @@ public class Product
 
     public SubCategory SubCategory { get; set; } = null!;
     public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
+    public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

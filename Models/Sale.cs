@@ -15,6 +15,11 @@ public class Sale
     public decimal DiscountValue { get; set; }
     /// <summary>Resolved discount in currency</summary>
     public decimal Discount { get; set; }
+    /// <summary>VAT percent from store settings at sale time</summary>
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
+    /// <summary>Exclusive = VAT added; Inclusive = prices already include VAT</summary>
+    public string TaxMode { get; set; } = TaxModes.Exclusive;
     public decimal Total { get; set; }
     public string PaymentMethod { get; set; } = PaymentMethods.Cash;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

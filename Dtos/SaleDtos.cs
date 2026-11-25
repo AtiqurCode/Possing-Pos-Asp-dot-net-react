@@ -31,6 +31,9 @@ public record SaleDto(
     string DiscountType,
     decimal DiscountValue,
     decimal Discount,
+    decimal TaxRate,
+    decimal TaxAmount,
+    string TaxMode,
     decimal Total,
     string PaymentMethod,
     DateTime CreatedAt,
@@ -44,6 +47,7 @@ public record SaleListItemDto(
     string? CustomerMobile,
     decimal Total,
     decimal Discount,
+    decimal TaxAmount,
     string PaymentMethod,
     DateTime CreatedAt,
     int ItemCount);

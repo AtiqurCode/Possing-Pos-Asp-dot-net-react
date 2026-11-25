@@ -12,9 +12,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppSetting>(e =>
+        {
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.Property(x => x.Value).HasMaxLength(512);
+        });
+
         modelBuilder.Entity<User>(e =>
         {
             e.HasIndex(x => x.Username).IsUnique();
@@ -72,6 +81,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.SubTotal).HasPrecision(18, 2);
             e.Property(x => x.DiscountValue).HasPrecision(18, 2);
             e.Property(x => x.Discount).HasPrecision(18, 2);
+            e.Property(x => x.TaxRate).HasPrecision(18, 2);
+            e.Property(x => x.TaxAmount).HasPrecision(18, 2);
+            e.Property(x => x.TaxMode).HasMaxLength(16);
             e.Property(x => x.Total).HasPrecision(18, 2);
             e.HasOne(x => x.User)
                 .WithMany(x => x.Sales)
@@ -95,6 +107,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(x => x.SaleItems)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StockMovement>(e =>
+        {
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.ProductId, x.CreatedAt });
+            e.Property(x => x.Type).HasMaxLength(16);
+            e.Property(x => x.Note).HasMaxLength(256);
+            e.Property(x => x.ReferenceType).HasMaxLength(32);
+            e.HasOne(x => x.Product)
+                .WithMany(x => x.StockMovements)
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

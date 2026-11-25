@@ -5,7 +5,7 @@ using Possing.Models;
 
 namespace Possing.Services;
 
-public class ProductService(AppDbContext db, ProductImageService images)
+public class ProductService(AppDbContext db, ProductImageService images, InventoryService inventory)
 {
     public async Task<IReadOnlyList<ProductDto>> GetAllAsync(string? search = null, Guid? categoryId = null, bool? lowStockOnly = null)
     {
@@ -96,6 +96,18 @@ public class ProductService(AppDbContext db, ProductImageService images)
         };
 
         db.Products.Add(entity);
+        if (entity.Quantity > 0)
+        {
+            inventory.AddMovement(
+                entity.Id,
+                StockMovementTypes.Received,
+                entity.Quantity,
+                0,
+                entity.Quantity,
+                null,
+                "Opening stock");
+        }
+
         await db.SaveChangesAsync();
         entity.SubCategory = sub;
         return Map(entity);
@@ -120,12 +132,20 @@ public class ProductService(AppDbContext db, ProductImageService images)
         entity.Name = request.Name.Trim();
         entity.Description = request.Description?.Trim() ?? string.Empty;
         entity.Price = request.Price;
-        entity.Quantity = request.Quantity;
         entity.MinStockLevel = request.MinStockLevel;
         entity.SubCategoryId = request.SubCategoryId;
         entity.IsActive = request.IsActive;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.SubCategory = sub;
+
+        if (entity.Quantity != request.Quantity)
+        {
+            await inventory.RecordAbsoluteSetAsync(
+                entity,
+                request.Quantity,
+                null,
+                "Product edit");
+        }
 
         await db.SaveChangesAsync();
         return Map(entity);
@@ -143,7 +163,15 @@ public class ProductService(AppDbContext db, ProductImageService images)
         if (entity is null) return null;
 
         entity.Price = request.Price;
-        entity.Quantity = request.Quantity;
+        if (entity.Quantity != request.Quantity)
+        {
+            await inventory.RecordAbsoluteSetAsync(
+                entity,
+                request.Quantity,
+                null,
+                "Inline stock adjust");
+        }
+
         entity.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Map(entity);
