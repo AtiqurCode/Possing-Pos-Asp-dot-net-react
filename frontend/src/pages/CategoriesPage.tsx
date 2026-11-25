@@ -51,7 +51,7 @@ export default function CategoriesPage() {
   })
 
   return (
-    <div className="space-y-3">
+    <div className="page space-y-3">
       <div>
         <h2 className="text-xl font-bold">Catalog</h2>
         <p className="text-sm text-[var(--muted)]">Categories and subcategories</p>

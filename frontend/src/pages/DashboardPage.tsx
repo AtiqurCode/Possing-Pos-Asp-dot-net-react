@@ -29,13 +29,13 @@ export default function DashboardPage() {
   const pieData = data.todayPaymentBreakdown.map((p) => ({ name: p.name, value: Number(p.amount) }))
 
   return (
-    <div className="space-y-3">
+    <div className="page space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold">Register overview</h2>
           <p className="text-sm text-[var(--muted)]">Live sales + stock alerts</p>
         </div>
-        <Link to="/pos" className="btn btn-pay">Open Sell screen</Link>
+        <Link to="/pos" className="btn btn-pay w-full sm:w-auto">Open Sell screen</Link>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       <div className="grid lg:grid-cols-2 gap-3">
         <div className="panel p-3">
           <div className="font-semibold mb-2">Sales · last 7 days</div>
-          <div className="h-56">
+          <div className="h-48 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.last7DaysSales.map((d) => ({ ...d, value: Number(d.value) }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dbe3ea" />
@@ -75,7 +75,7 @@ export default function DashboardPage() {
 
         <div className="panel p-3">
           <div className="font-semibold mb-2">Today · payment mix</div>
-          <div className="h-56">
+          <div className="h-48 sm:h-56">
             {pieData.length === 0 ? (
               <div className="h-full grid place-items-center text-[var(--muted)] text-sm">No sales yet today</div>
             ) : (

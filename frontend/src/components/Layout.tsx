@@ -6,8 +6,10 @@ const links = [
   { to: '/', label: 'Register' },
   { to: '/pos', label: 'Sell' },
   { to: '/products', label: 'Stock' },
+  { to: '/inventory', label: 'Inventory' },
   { to: '/customers', label: 'Members' },
   { to: '/categories', label: 'Catalog', adminOnly: true },
+  { to: '/settings', label: 'Settings', adminOnly: true },
   { to: '/sales', label: 'Receipts' },
   { to: '/reports', label: 'Reports' },
 ]
@@ -38,7 +40,7 @@ export default function Layout() {
         <div className="px-3 py-2 flex items-center gap-2">
           <button
             type="button"
-            className="lg:hidden btn btn-ghost !min-h-10 !px-3 !text-white !bg-white/10 !border-white/20"
+            className="btn btn-ghost !min-h-10 !px-3 !text-white !bg-white/10 !border-white/20 !hidden max-md:!inline-flex"
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
@@ -94,9 +96,9 @@ export default function Layout() {
         </nav>
       </header>
 
-      {/* mobile drawer */}
+      {/* mobile drawer — phone only; tablet/desktop use inline nav */}
       {open && (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 max-md:block hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/45"

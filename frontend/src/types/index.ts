@@ -54,6 +54,7 @@ export type SaleListItem = {
   customerMobile?: string | null
   total: number
   discount: number
+  taxAmount: number
   paymentMethod: string
   createdAt: string
   itemCount: number
@@ -81,10 +82,55 @@ export type Sale = {
   discountType: 'Amount' | 'Percent'
   discountValue: number
   discount: number
+  taxRate: number
+  taxAmount: number
+  taxMode: TaxMode
   total: number
   paymentMethod: string
   createdAt: string
   items: SaleItem[]
+}
+
+export type TaxMode = 'Exclusive' | 'Inclusive'
+
+export type StoreSettings = {
+  name: string
+  address: string
+  phone: string
+  vatPercent: number
+  currency: string
+  taxMode: TaxMode
+}
+
+export type StockMovementType = 'Received' | 'Sold' | 'Missing' | 'Adjustment'
+
+export type StockMovement = {
+  id: string
+  productId: string
+  productName: string
+  sku: string
+  sequenceNumber: number
+  type: StockMovementType
+  quantity: number
+  quantityBefore: number
+  quantityAfter: number
+  note?: string | null
+  referenceId?: string | null
+  referenceType?: string | null
+  userName?: string | null
+  createdAt: string
+}
+
+export type InventorySummary = {
+  productId?: string | null
+  productName?: string | null
+  received: number
+  sold: number
+  missing: number
+  adjustmentIn: number
+  adjustmentOut: number
+  onHand: number
+  netChange: number
 }
 
 export type ChartPoint = { label: string; value: number }

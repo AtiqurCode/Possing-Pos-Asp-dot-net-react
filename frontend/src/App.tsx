@@ -6,11 +6,13 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import CategoriesPage from './pages/CategoriesPage'
 import CustomersPage from './pages/CustomersPage'
 import DashboardPage from './pages/DashboardPage'
+import InventoryPage from './pages/InventoryPage'
 import LoginPage from './pages/LoginPage'
 import PosPage from './pages/PosPage'
 import ProductsPage from './pages/ProductsPage'
 import ReportsPage from './pages/ReportsPage'
 import SalesPage from './pages/SalesPage'
+import SettingsPage from './pages/SettingsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,12 +37,21 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="pos" element={<PosPage />} />
               <Route path="products" element={<ProductsPage />} />
+              <Route path="inventory" element={<InventoryPage />} />
               <Route path="customers" element={<CustomersPage />} />
               <Route
                 path="categories"
                 element={
                   <ProtectedRoute adminOnly>
                     <CategoriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <SettingsPage />
                   </ProtectedRoute>
                 }
               />

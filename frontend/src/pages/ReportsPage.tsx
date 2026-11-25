@@ -30,30 +30,30 @@ export default function ReportsPage() {
   })
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="page space-y-3">
+      <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Sales reports</h2>
           <p className="text-sm text-[var(--muted)]">Charts on screen · PDF export optional</p>
         </div>
-        <div className="flex flex-wrap gap-2 items-end">
-          <label className="text-sm">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-end w-full lg:w-auto">
+          <label className="text-sm font-medium col-span-1">
             Year
-            <input type="number" className="field mt-1 w-24" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+            <input type="number" className="field mt-1 w-full sm:w-24" value={year} onChange={(e) => setYear(Number(e.target.value))} />
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium col-span-1">
             Month
-            <select className="field mt-1 w-24" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+            <select className="field mt-1 w-full sm:w-24" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </label>
-          <button className="btn btn-ghost" onClick={() => refetch()} disabled={isFetching}>
+          <button className="btn btn-ghost col-span-1" onClick={() => refetch()} disabled={isFetching}>
             Refresh
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary col-span-1"
             onClick={() =>
               reportsApi.download(
                 `/reports/monthly?year=${year}&month=${month}`,

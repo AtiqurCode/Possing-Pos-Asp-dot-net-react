@@ -3,10 +3,14 @@ import type {
   Category,
   Customer,
   DashboardSummary,
+  InventorySummary,
   Product,
   ReportAnalytics,
   Sale,
   SaleListItem,
+  StockMovement,
+  StockMovementType,
+  StoreSettings,
   SubCategory,
   User,
 } from '../types'
@@ -122,6 +126,33 @@ export const productsApi = {
   },
 }
 
+export const inventoryApi = {
+  movements: async (params?: {
+    productId?: string
+    type?: StockMovementType
+    from?: string
+    to?: string
+    take?: number
+  }) => {
+    const { data } = await api.get<StockMovement[]>('/inventory/movements', { params })
+    return data
+  },
+  summary: async (productId?: string) => {
+    const { data } = await api.get<InventorySummary>('/inventory/summary', {
+      params: productId ? { productId } : undefined,
+    })
+    return data
+  },
+  receive: async (payload: { productId: string; quantity: number; note?: string }) => {
+    const { data } = await api.post<Product>('/inventory/receive', payload)
+    return data
+  },
+  missing: async (payload: { productId: string; quantity: number; note?: string }) => {
+    const { data } = await api.post<Product>('/inventory/missing', payload)
+    return data
+  },
+}
+
 export const customersApi = {
   list: async (search?: string) => {
     const { data } = await api.get<Customer[]>('/customers', { params: search ? { search } : undefined })
@@ -133,6 +164,17 @@ export const customersApi = {
   },
   upsert: async (name: string, mobile: string) => {
     const { data } = await api.post<Customer>('/customers', { name, mobile })
+    return data
+  },
+}
+
+export const settingsApi = {
+  store: async () => {
+    const { data } = await api.get<StoreSettings>('/settings/store')
+    return data
+  },
+  updateStore: async (payload: StoreSettings) => {
+    const { data } = await api.put<StoreSettings>('/settings/store', payload)
     return data
   },
 }

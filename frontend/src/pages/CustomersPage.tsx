@@ -32,22 +32,22 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="page space-y-3">
       <div>
         <h2 className="text-xl font-bold">Members</h2>
         <p className="text-sm text-[var(--muted)]">Optional customer profiles linked by mobile</p>
       </div>
 
-      <form onSubmit={onSubmit} className="panel p-3 grid md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
-        <label className="text-sm">
+      <form onSubmit={onSubmit} className="panel p-3 grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+        <label className="block text-sm font-medium">
           Name
           <input className="field mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional display name" />
         </label>
-        <label className="text-sm">
+        <label className="block text-sm font-medium">
           Mobile
-          <input className="field mt-1" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder="01XXXXXXXXX" />
+          <input className="field mt-1" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder="01XXXXXXXXX" inputMode="tel" />
         </label>
-        <button className="btn btn-primary">Save member</button>
+        <button className="btn btn-primary w-full lg:w-auto sm:col-span-2 lg:col-span-1">Save member</button>
       </form>
       {error && <div className="text-sm text-[var(--danger)]">{error}</div>}
 

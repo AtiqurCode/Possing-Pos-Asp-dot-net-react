@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getErrorMessage } from '../api/client'
 import { productsApi, subCategoriesApi } from '../api/endpoints'
 import { useAuth } from '../auth/AuthContext'
@@ -221,16 +221,22 @@ export default function ProductsPage() {
   const formPreview = previewUrl || (editing ? mediaUrl(editing.imageUrl) : null)
 
   return (
-    <div className="space-y-3">
+    <div className="page space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Stock</h2>
           <p className="text-sm text-[var(--muted)]">
-            Edit price/qty inline · Enter or blur to save · Upload product images
+            Edit price/qty inline · Enter or blur to save ·{' '}
+            <Link to="/inventory" className="text-[var(--accent)] hover:underline">
+              Inventory history
+            </Link>
           </p>
         </div>
         {isAdmin && (
-          <button onClick={openCreate} className="btn btn-primary">Add product</button>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Link to="/inventory" className="btn btn-ghost w-full sm:w-auto">Receive / Missing</Link>
+            <button onClick={openCreate} className="btn btn-primary w-full sm:w-auto">Add product</button>
+          </div>
         )}
       </div>
 

@@ -8,7 +8,7 @@ export default function SalesPage() {
   })
 
   return (
-    <div className="space-y-3">
+    <div className="page space-y-3">
       <div>
         <h2 className="text-xl font-bold">Receipts</h2>
         <p className="text-sm text-[var(--muted)]">Sale history with customer + discount</p>
@@ -27,6 +27,7 @@ export default function SalesPage() {
                 <th>Customer</th>
                 <th>Items</th>
                 <th>Discount</th>
+                <th>VAT</th>
                 <th>Pay</th>
                 <th>Total</th>
                 <th>Slip</th>
@@ -50,6 +51,7 @@ export default function SalesPage() {
                   </td>
                   <td className="mono">{s.itemCount}</td>
                   <td className="mono">{Number(s.discount).toFixed(2)}</td>
+                  <td className="mono">{Number(s.taxAmount ?? 0).toFixed(2)}</td>
                   <td>{s.paymentMethod}</td>
                   <td className="mono font-semibold">BDT {s.total.toFixed(2)}</td>
                   <td>
@@ -63,7 +65,7 @@ export default function SalesPage() {
                 </tr>
               ))}
               {sales.length === 0 && (
-                <tr><td colSpan={9} className="text-[var(--muted)]">No receipts yet</td></tr>
+                <tr><td colSpan={10} className="text-[var(--muted)]">No receipts yet</td></tr>
               )}
             </tbody>
           </table>
