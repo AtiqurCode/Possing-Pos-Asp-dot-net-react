@@ -2,8 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getErrorMessage } from '../api/client'
 import { customersApi } from '../api/endpoints'
+import { money, useStoreSettings } from '../hooks/useStoreSettings'
 
 export default function CustomersPage() {
+  const { currency } = useStoreSettings()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
@@ -82,7 +84,7 @@ export default function CustomersPage() {
                   <td>{c.name}</td>
                   <td className="mono">{c.mobile}</td>
                   <td className="mono">{c.visitCount}</td>
-                  <td className="mono">BDT {c.totalSpent.toFixed(2)}</td>
+                  <td className="mono">{money(currency, c.totalSpent)}</td>
                   <td>{new Date(c.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}

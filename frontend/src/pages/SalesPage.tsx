@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi, salesApi } from '../api/endpoints'
+import { money, useStoreSettings } from '../hooks/useStoreSettings'
 
 export default function SalesPage() {
+  const { currency } = useStoreSettings()
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ['sales'],
     queryFn: () => salesApi.list(),
@@ -53,7 +55,7 @@ export default function SalesPage() {
                   <td className="mono">{Number(s.discount).toFixed(2)}</td>
                   <td className="mono">{Number(s.taxAmount ?? 0).toFixed(2)}</td>
                   <td>{s.paymentMethod}</td>
-                  <td className="mono font-semibold">BDT {s.total.toFixed(2)}</td>
+                  <td className="mono font-semibold">{money(currency, s.total)}</td>
                   <td>
                     <button
                       className="text-[var(--accent)] hover:underline"

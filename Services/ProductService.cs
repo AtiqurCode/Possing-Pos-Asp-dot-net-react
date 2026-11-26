@@ -66,7 +66,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
         return product is null ? null : Map(product);
     }
 
-    public async Task<ProductDto?> CreateAsync(CreateProductRequest request)
+    public async Task<ProductDto?> CreateAsync(Guid userId, CreateProductRequest request)
     {
         var sub = await db.SubCategories.Include(s => s.Category).FirstOrDefaultAsync(s => s.Id == request.SubCategoryId);
         if (sub is null) return null;
@@ -104,7 +104,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
                 entity.Quantity,
                 0,
                 entity.Quantity,
-                null,
+                userId,
                 "Opening stock");
         }
 
@@ -113,7 +113,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
         return Map(entity);
     }
 
-    public async Task<ProductDto?> UpdateAsync(Guid id, UpdateProductRequest request)
+    public async Task<ProductDto?> UpdateAsync(Guid userId, Guid id, UpdateProductRequest request)
     {
         var entity = await db.Products
             .Include(p => p.SubCategory)
@@ -143,7 +143,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
             await inventory.RecordAbsoluteSetAsync(
                 entity,
                 request.Quantity,
-                null,
+                userId,
                 "Product edit");
         }
 
@@ -151,7 +151,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
         return Map(entity);
     }
 
-    public async Task<ProductDto?> PatchStockAsync(Guid id, PatchProductStockRequest request)
+    public async Task<ProductDto?> PatchStockAsync(Guid userId, Guid id, PatchProductStockRequest request)
     {
         if (request.Price < 0 || request.Quantity < 0)
             throw new InvalidOperationException("Price and quantity must be >= 0.");
@@ -168,7 +168,7 @@ public class ProductService(AppDbContext db, ProductImageService images, Invento
             await inventory.RecordAbsoluteSetAsync(
                 entity,
                 request.Quantity,
-                null,
+                userId,
                 "Inline stock adjust");
         }
 

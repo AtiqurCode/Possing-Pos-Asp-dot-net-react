@@ -4,13 +4,14 @@ import { getErrorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
 export default function LoginPage() {
-  const { login, token } = useAuth()
+  const { login, token, ready } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('admin123')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  if (!ready) return <p className="p-6 text-sm text-[var(--muted)]">Checking session…</p>
   if (token) return <Navigate to="/pos" replace />
 
   async function onSubmit(e: FormEvent) {

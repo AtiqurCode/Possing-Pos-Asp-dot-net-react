@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Possing.Dtos;
@@ -36,6 +37,8 @@ public class ProductsController(ProductService products) : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductRequest request)
     {
+        if (!TryUserId(out var userId)) return Unauthorized();
+
         try
         {
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -43,7 +46,7 @@ public class ProductsController(ProductService products) : ControllerBase
             if (request.Price < 0 || request.Quantity < 0)
                 return BadRequest(new { message = "Price and quantity must be >= 0." });
 
-            var created = await products.CreateAsync(request);
+            var created = await products.CreateAsync(userId, request);
             return created is null
                 ? BadRequest(new { message = "Subcategory not found." })
                 : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -58,9 +61,11 @@ public class ProductsController(ProductService products) : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ProductDto>> Update(Guid id, [FromBody] UpdateProductRequest request)
     {
+        if (!TryUserId(out var userId)) return Unauthorized();
+
         try
         {
-            var updated = await products.UpdateAsync(id, request);
+            var updated = await products.UpdateAsync(userId, id, request);
             return updated is null ? NotFound() : Ok(updated);
         }
         catch (InvalidOperationException ex)
@@ -73,9 +78,11 @@ public class ProductsController(ProductService products) : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ProductDto>> PatchStock(Guid id, [FromBody] PatchProductStockRequest request)
     {
+        if (!TryUserId(out var userId)) return Unauthorized();
+
         try
         {
-            var updated = await products.PatchStockAsync(id, request);
+            var updated = await products.PatchStockAsync(userId, id, request);
             return updated is null ? NotFound() : Ok(updated);
         }
         catch (InvalidOperationException ex)
@@ -107,4 +114,10 @@ public class ProductsController(ProductService products) : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> Delete(Guid id)
         => await products.DeleteAsync(id) ? NoContent() : NotFound();
+
+    private bool TryUserId(out Guid userId)
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(idValue, out userId);
+    }
 }

@@ -214,6 +214,8 @@ public class ReportService(AppDbContext db, SettingsService settings)
     {
         var start = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
         var end = start.AddMonths(1);
+        var store = await settings.GetStoreAsync();
+        var currency = string.IsNullOrWhiteSpace(store.Currency) ? "BDT" : store.Currency;
 
         var sales = await db.Sales
             .AsNoTracking()
@@ -242,9 +244,9 @@ public class ReportService(AppDbContext db, SettingsService settings)
                 page.Content().Column(col =>
                 {
                     col.Item().Text($"Total sales: {sales.Count}");
-                    col.Item().Text($"Gross total: BDT {sales.Sum(s => s.Total):0.00}");
-                    col.Item().Text($"Cash: BDT {sales.Where(s => s.PaymentMethod == "Cash").Sum(s => s.Total):0.00}");
-                    col.Item().Text($"Card: BDT {sales.Where(s => s.PaymentMethod == "Card").Sum(s => s.Total):0.00}");
+                    col.Item().Text($"Gross total: {currency} {sales.Sum(s => s.Total):0.00}");
+                    col.Item().Text($"Cash: {currency} {sales.Where(s => s.PaymentMethod == "Cash").Sum(s => s.Total):0.00}");
+                    col.Item().Text($"Card: {currency} {sales.Where(s => s.PaymentMethod == "Card").Sum(s => s.Total):0.00}");
                     col.Item().PaddingVertical(10);
 
                     col.Item().Table(table =>

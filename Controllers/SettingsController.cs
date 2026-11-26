@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Possing.Dtos;
+using Possing.Models;
 using Possing.Services;
 
 namespace Possing.Controllers;
@@ -15,7 +16,7 @@ public class SettingsController(SettingsService settings) : ControllerBase
         => Ok(await settings.GetStoreAsync());
 
     [HttpPut("store")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<StoreSettingsDto>> UpdateStore([FromBody] UpdateStoreSettingsRequest request)
     {
         try

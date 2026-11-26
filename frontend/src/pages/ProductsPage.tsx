@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { getErrorMessage } from '../api/client'
 import { productsApi, subCategoriesApi } from '../api/endpoints'
 import { useAuth } from '../auth/AuthContext'
+import { useStoreSettings } from '../hooks/useStoreSettings'
 import { mediaUrl } from '../lib/media'
 import type { Product } from '../types'
 
@@ -22,6 +23,7 @@ type Draft = { price: string; quantity: string }
 
 export default function ProductsPage() {
   const { isAdmin } = useAuth()
+  const { currency } = useStoreSettings()
   const qc = useQueryClient()
   const [params] = useSearchParams()
   const [search, setSearch] = useState('')
@@ -224,11 +226,11 @@ export default function ProductsPage() {
     <div className="page space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Stock</h2>
+          <h2 className="text-xl font-bold">Products</h2>
           <p className="text-sm text-[var(--muted)]">
-            Edit price/qty inline · Enter or blur to save ·{' '}
+            Catalog + on-hand qty · inline price/qty ·{' '}
             <Link to="/inventory" className="text-[var(--accent)] hover:underline">
-              Inventory history
+              Inventory ledger
             </Link>
           </p>
         </div>
@@ -290,7 +292,7 @@ export default function ProductsPage() {
           </label>
 
           <label className="block text-sm font-medium">
-            Price (BDT)
+            Price ({currency})
             <input
               type="number"
               min={0}

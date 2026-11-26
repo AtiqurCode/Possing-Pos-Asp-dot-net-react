@@ -13,10 +13,12 @@ import {
   YAxis,
 } from 'recharts'
 import { dashboardApi } from '../api/endpoints'
+import { money, useStoreSettings } from '../hooks/useStoreSettings'
 
 const COLORS = ['#1f6feb', '#1b7f4a', '#c47a00', '#6b7280']
 
 export default function DashboardPage() {
+  const { currency } = useStoreSettings()
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: dashboardApi.summary,
@@ -41,7 +43,7 @@ export default function DashboardPage() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="stat">
           <div className="label">Today</div>
-          <div className="value">BDT {data.todaySalesTotal.toFixed(0)}</div>
+          <div className="value">{money(currency, data.todaySalesTotal, 0)}</div>
         </div>
         <div className="stat">
           <div className="label">Tickets</div>
@@ -49,7 +51,7 @@ export default function DashboardPage() {
         </div>
         <div className="stat">
           <div className="label">Last 7 days</div>
-          <div className="value">BDT {data.weekSalesTotal.toFixed(0)}</div>
+          <div className="value">{money(currency, data.weekSalesTotal, 0)}</div>
         </div>
         <div className="stat">
           <div className="label">Low stock</div>

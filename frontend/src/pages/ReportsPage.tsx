@@ -16,10 +16,12 @@ import {
   YAxis,
 } from 'recharts'
 import { reportsApi } from '../api/endpoints'
+import { money, useStoreSettings } from '../hooks/useStoreSettings'
 
 const COLORS = ['#1f6feb', '#1b7f4a', '#c47a00', '#7c3aed', '#0891b2', '#be123c', '#4b5563', '#0f766e']
 
 export default function ReportsPage() {
+  const { currency } = useStoreSettings()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -72,10 +74,10 @@ export default function ReportsPage() {
       {data && (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="stat"><div className="label">Total sales</div><div className="value">BDT {Number(data.totalSales).toFixed(0)}</div></div>
+            <div className="stat"><div className="label">Total sales</div><div className="value">{money(currency, Number(data.totalSales), 0)}</div></div>
             <div className="stat"><div className="label">Transactions</div><div className="value">{data.transactionCount}</div></div>
-            <div className="stat"><div className="label">Avg ticket</div><div className="value">BDT {Number(data.averageTicket).toFixed(0)}</div></div>
-            <div className="stat"><div className="label">Discounts given</div><div className="value">BDT {Number(data.totalDiscount).toFixed(0)}</div></div>
+            <div className="stat"><div className="label">Avg ticket</div><div className="value">{money(currency, Number(data.averageTicket), 0)}</div></div>
+            <div className="stat"><div className="label">Discounts given</div><div className="value">{money(currency, Number(data.totalDiscount), 0)}</div></div>
           </div>
 
           <div className="panel p-3">
@@ -165,7 +167,7 @@ export default function ReportsPage() {
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="amount" fill="#1b7f4a" name="Amount (BDT)" />
+                    <Bar dataKey="amount" fill="#1b7f4a" name={`Amount (${currency})`} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
