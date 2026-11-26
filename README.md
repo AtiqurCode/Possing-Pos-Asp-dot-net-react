@@ -374,7 +374,9 @@ Possing/
 │   │   ├── api/          # Axios + endpoint helpers
 │   │   ├── auth/         # AuthContext
 │   │   ├── components/   # Layout, ProtectedRoute
-│   │   ├── pages/        # Sell, Stock, Inventory, Settings, …
+│   │   ├── hooks/        # useStoreSettings (currency/VAT)
+│   │   ├── pages/        # Sell, Products, Inventory, Settings, …
+│   │   │   └── pos/      # PosCheckoutAside + totals helpers
 │   │   └── types/
 │   ├── nginx.conf        # Docker SPA + API proxy
 │   └── Dockerfile

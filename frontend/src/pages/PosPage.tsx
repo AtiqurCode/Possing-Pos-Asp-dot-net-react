@@ -1,25 +1,32 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { getErrorMessage } from '../api/client'
-import { productsApi, reportsApi, salesApi, settingsApi } from '../api/endpoints'
+import { customersApi, productsApi, reportsApi, salesApi } from '../api/endpoints'
+import { useStoreSettings } from '../hooks/useStoreSettings'
 import type { CartLine, Product, Sale } from '../types'
-
-const DISCOUNTS = [0, 5, 10, 15] as const
+import PosCheckoutAside from './pos/PosCheckoutAside'
+import { computePosTotals, parseQtyCode } from './pos/totals'
 
 export default function PosPage() {
   const inputRef = useRef<HTMLInputElement>(null)
+  const memberRef = useRef<HTMLInputElement>(null)
   const cartRef = useRef<CartLine[]>([])
   const payRef = useRef<'Cash' | 'Card'>('Cash')
   const discountRef = useRef(0)
   const pendingRef = useRef(false)
   const lastSaleRef = useRef<Sale | null>(null)
   const selectedRef = useRef(0)
+  const customerNameRef = useRef('')
+  const customerMobileRef = useRef('')
 
   const [code, setCode] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card'>('Cash')
   const [discountPct, setDiscountPct] = useState(0)
   const [selectedIdx, setSelectedIdx] = useState(0)
+  const [customerName, setCustomerName] = useState('')
+  const [customerMobile, setCustomerMobile] = useState('')
+  const [memberHint, setMemberHint] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [lastSale, setLastSale] = useState<Sale | null>(null)
@@ -30,34 +37,25 @@ export default function PosPage() {
   discountRef.current = discountPct
   lastSaleRef.current = lastSale
   selectedRef.current = selectedIdx
+  customerNameRef.current = customerName
+  customerMobileRef.current = customerMobile
 
   const { data: products = [] } = useQuery({
     queryKey: ['products-pos'],
     queryFn: () => productsApi.list(),
   })
 
-  const { data: store } = useQuery({
-    queryKey: ['store-settings'],
-    queryFn: settingsApi.store,
-  })
-
-  const currency = store?.currency ?? 'BDT'
-  const vatPercent = store?.vatPercent ?? 0
-  const inclusive = store?.taxMode === 'Inclusive'
+  const { currency, vatPercent, inclusive } = useStoreSettings()
 
   const subTotal = useMemo(() => cart.reduce((s, l) => s + l.product.price * l.qty, 0), [cart])
-  const discountAmount = useMemo(
-    () => Math.round(subTotal * (discountPct / 100) * 100) / 100,
-    [subTotal, discountPct],
+  const { discountAmount, taxAmount, total } = useMemo(
+    () => computePosTotals(subTotal, discountPct, vatPercent, inclusive),
+    [subTotal, discountPct, vatPercent, inclusive],
   )
-  const afterDiscount = Math.max(0, subTotal - discountAmount)
-  const taxAmount = useMemo(() => {
-    if (vatPercent <= 0) return 0
-    if (inclusive) return Math.round((afterDiscount * vatPercent) / (100 + vatPercent) * 100) / 100
-    return Math.round(afterDiscount * (vatPercent / 100) * 100) / 100
-  }, [afterDiscount, vatPercent, inclusive])
-  const total = inclusive ? afterDiscount : afterDiscount + taxAmount
   const itemCount = useMemo(() => cart.reduce((s, l) => s + l.qty, 0), [cart])
+  const vatLabel = inclusive ? `VAT incl. (${vatPercent}%)` : `VAT (${vatPercent}%)`
+  const canCharge = cart.length > 0 && !pendingRef.current
+  const quick = products.filter((p) => p.isActive && p.quantity > 0).slice(0, 12)
 
   function focusScan() {
     requestAnimationFrame(() => inputRef.current?.focus())
@@ -124,13 +122,36 @@ export default function PosPage() {
     focusScan()
   }
 
+  function clearMember() {
+    setCustomerName('')
+    setCustomerMobile('')
+    setMemberHint('')
+  }
+
   function clearCart() {
     setCart([])
     setDiscountPct(0)
     setSelectedIdx(0)
+    clearMember()
     setMessage('Cart cleared')
     setError('')
     focusScan()
+  }
+
+  async function lookupMember() {
+    const mobile = customerMobileRef.current.trim()
+    if (!mobile) {
+      setMemberHint('')
+      return
+    }
+    try {
+      const c = await customersApi.lookup(mobile)
+      setCustomerName(c.name)
+      setMemberHint(`${c.membershipCode} · ${c.visitCount} visits`)
+      setMessage(`Member · ${c.name || c.mobile}`)
+    } catch {
+      setMemberHint('New member — saved on charge')
+    }
   }
 
   function printLastSlip() {
@@ -146,25 +167,16 @@ export default function PosPage() {
   }
 
   async function addByCode(raw?: string) {
-    const text = (raw ?? code).trim()
-    if (!text) return
-
-    // Qty multiplier: 3*SKU or 3*1001
-    let qty = 1
-    let lookup = text
-    const mult = text.match(/^(\d+)\*(.+)$/)
-    if (mult) {
-      qty = Math.max(1, Number(mult[1]) || 1)
-      lookup = mult[2].trim()
-    }
-    if (!lookup) {
+    const parsed = parseQtyCode(raw ?? code)
+    if (!parsed) return
+    if (!parsed.lookup) {
       setError('Enter product after qty*')
       return
     }
 
     try {
-      const product = await productsApi.byCode(lookup)
-      addProduct(product, qty)
+      const product = await productsApi.byCode(parsed.lookup)
+      addProduct(product, parsed.qty)
       setCode('')
     } catch (err) {
       setError(getErrorMessage(err, 'Not found'))
@@ -179,6 +191,8 @@ export default function PosPage() {
         discountType: 'Percent',
         discountValue: discountRef.current,
         paymentMethod: pay,
+        customerName: customerNameRef.current.trim() || undefined,
+        customerMobile: customerMobileRef.current.trim() || undefined,
       }),
     onMutate: () => {
       pendingRef.current = true
@@ -189,6 +203,7 @@ export default function PosPage() {
       setCart([])
       setDiscountPct(0)
       setSelectedIdx(0)
+      clearMember()
       setMessage(`Paid · ${sale.invoiceNo} · ${currency} ${sale.total.toFixed(2)}`)
       setError('')
       focusScan()
@@ -209,7 +224,6 @@ export default function PosPage() {
   function onScanSubmit(e: FormEvent) {
     e.preventDefault()
     const text = code.trim()
-    // Empty Enter with cart → charge (classic register)
     if (!text) {
       if (cartRef.current.length > 0) charge()
       return
@@ -223,7 +237,6 @@ export default function PosPage() {
       const mod = e.ctrlKey || e.metaKey
       const typing = (e.target as HTMLElement)?.tagName === 'INPUT'
 
-      // Always-on register keys (block browser chrome)
       if (key === 'F1') {
         e.preventDefault()
         setShowKeys((v) => !v)
@@ -273,13 +286,17 @@ export default function PosPage() {
         focusScan()
         return
       }
-
+      if (key === 'F12') {
+        e.preventDefault()
+        memberRef.current?.focus()
+        memberRef.current?.select()
+        return
+      }
       if (mod && key === 'Enter') {
         e.preventDefault()
         charge()
         return
       }
-
       if (key === 'Escape') {
         e.preventDefault()
         setCode('')
@@ -288,7 +305,6 @@ export default function PosPage() {
         return
       }
 
-      // Cart navigation / qty — when not holding modifiers
       if (!mod && !e.altKey) {
         if (key === 'ArrowUp') {
           e.preventDefault()
@@ -309,7 +325,6 @@ export default function PosPage() {
           return
         }
 
-        // + / - qty (skip if typing a code that isn't empty — allow * multipliers)
         const scanEmpty = !inputRef.current?.value
         if ((key === '+' || key === '=') && (scanEmpty || !typing)) {
           e.preventDefault()
@@ -328,14 +343,7 @@ export default function PosPage() {
         }
       }
 
-      // Keep scan focused: printable keys while focus elsewhere jump back to scan
-      if (
-        !typing &&
-        !mod &&
-        !e.altKey &&
-        key.length === 1 &&
-        !['+', '=', '-'].includes(key)
-      ) {
+      if (!typing && !mod && !e.altKey && key.length === 1 && !['+', '=', '-'].includes(key)) {
         inputRef.current?.focus()
       }
     }
@@ -344,7 +352,6 @@ export default function PosPage() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [checkout])
 
-  // Refocus scan when returning to the tab
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'visible') focusScan()
@@ -357,10 +364,6 @@ export default function PosPage() {
     }
   }, [])
 
-  const quick = products.filter((p) => p.isActive && p.quantity > 0).slice(0, 12)
-  const canCharge = cart.length > 0 && !checkout.isPending
-  const vatLabel = inclusive ? `VAT incl. (${vatPercent}%)` : `VAT (${vatPercent}%)`
-
   return (
     <div className="page grid lg:grid-cols-[minmax(0,1fr)_340px] gap-2 lg:h-[calc(100dvh-72px)] pb-16 lg:pb-0">
       <section className="flex flex-col gap-2 min-h-0">
@@ -370,11 +373,10 @@ export default function PosPage() {
               ref={inputRef}
               autoFocus
               className="field mono text-base flex-1"
-              placeholder="SKU / # · 3*SKU · Enter add · empty Enter = charge"
+              placeholder="Scan / SKU / # · Enter · 3*SKU for qty"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onBlur={() => {
-                // Soft refocus so cashiers stay on keyboard path
                 setTimeout(() => {
                   if (document.activeElement?.tagName === 'BODY') focusScan()
                 }, 0)
@@ -414,6 +416,7 @@ export default function PosPage() {
             <div><b>F6/F7</b> select pay only</div>
             <div><b>F4</b> clear · <b>F5</b> print slip</div>
             <div><b>F8–F11</b> disc 0/5/10/15%</div>
+            <div><b>F12</b> member (right panel)</div>
             <div><b>Esc</b> clear scan</div>
             <div><b>Ctrl+Enter</b> charge</div>
           </div>
@@ -497,173 +500,40 @@ export default function PosPage() {
         </div>
       </section>
 
-      <aside className="panel hidden lg:flex flex-col overflow-hidden">
-        <div
-          className="px-4 pt-4 pb-3 border-b border-[var(--line)]"
-          style={{
-            background: canCharge
-              ? 'linear-gradient(180deg, #e8f5ee 0%, #ffffff 100%)'
-              : 'linear-gradient(180deg, #f2f5f8 0%, #ffffff 100%)',
-          }}
-        >
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Amount due
-            </span>
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--chip)] text-[var(--muted)]">
-              {itemCount} item{itemCount === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="mono text-[2.35rem] font-bold leading-none tracking-tight text-[var(--ink)]">
-            <span className="text-lg font-semibold text-[var(--muted)] mr-1">{currency}</span>
-            {total.toFixed(2)}
-          </div>
-        </div>
-
-        <div className="px-4 py-3 space-y-1.5 text-sm border-b border-[var(--line)]">
-          <div className="flex justify-between gap-3">
-            <span className="text-[var(--muted)]">Subtotal</span>
-            <span className="mono">
-              {currency} {subTotal.toFixed(2)}
-            </span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between gap-3 text-[var(--warn)]">
-              <span>Discount (−{discountPct}%)</span>
-              <span className="mono">
-                −{currency} {discountAmount.toFixed(2)}
-              </span>
-            </div>
-          )}
-          {vatPercent > 0 && (
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--muted)]">{vatLabel}</span>
-              <span className="mono">
-                {inclusive ? '' : '+'}
-                {currency} {taxAmount.toFixed(2)}
-              </span>
-            </div>
-          )}
-          <div className="flex justify-between gap-3 pt-1.5 border-t border-dashed border-[var(--line)] font-semibold">
-            <span>Total</span>
-            <span className="mono">
-              {currency} {total.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        <div className="px-4 py-3 border-b border-[var(--line)]">
-          <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-2">
-            Discount <span className="font-normal normal-case">(F8–F11)</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {DISCOUNTS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`btn btn-sm ${discountPct === p ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setDiscountPct(p)
-                  focusScan()
-                }}
-              >
-                {p === 0 ? 'None' : `${p}%`}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="px-4 py-3 flex flex-col gap-3 flex-1">
-          <div>
-            <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-2">
-              Pay with
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className={`btn flex-col !h-auto !py-3 gap-0.5 ${
-                  paymentMethod === 'Cash' ? 'btn-primary' : 'btn-ghost'
-                }`}
-                onClick={() => {
-                  setPaymentMethod('Cash')
-                  focusScan()
-                }}
-              >
-                <span className="text-base">Cash</span>
-                <span
-                  className={`text-[10px] font-normal ${
-                    paymentMethod === 'Cash' ? 'opacity-80' : 'text-[var(--muted)]'
-                  }`}
-                >
-                  F2 charge · F6
-                </span>
-              </button>
-              <button
-                type="button"
-                className={`btn flex-col !h-auto !py-3 gap-0.5 ${
-                  paymentMethod === 'Card' ? 'btn-primary' : 'btn-ghost'
-                }`}
-                onClick={() => {
-                  setPaymentMethod('Card')
-                  focusScan()
-                }}
-              >
-                <span className="text-base">Card</span>
-                <span
-                  className={`text-[10px] font-normal ${
-                    paymentMethod === 'Card' ? 'opacity-80' : 'text-[var(--muted)]'
-                  }`}
-                >
-                  F3 charge · F7
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <button
-            disabled={!canCharge}
-            onClick={() => charge()}
-            className="btn btn-pay w-full !min-h-[64px] !py-4 flex-col gap-0.5 shadow-[0_4px_0_#145a34]"
-          >
-            {checkout.isPending ? (
-              <span className="text-lg">Processing…</span>
-            ) : (
-              <>
-                <span className="text-lg tracking-wide">CHARGE · {paymentMethod}</span>
-                <span className="mono text-sm opacity-90">
-                  {currency} {total.toFixed(2)} · Enter
-                </span>
-              </>
-            )}
-          </button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" className="btn btn-ghost btn-sm" disabled={cart.length === 0} onClick={clearCart}>
-              Clear · F4
-            </button>
-            {lastSale ? (
-              <button type="button" className="btn btn-ghost btn-sm text-[var(--accent)]" onClick={printLastSlip}>
-                Print · F5
-              </button>
-            ) : (
-              <div className="btn btn-ghost btn-sm opacity-40 pointer-events-none">Print · F5</div>
-            )}
-          </div>
-
-          {lastSale && (
-            <div className="rounded border border-[#b7e0c5] bg-[#eef8f1] px-3 py-2 text-xs">
-              <div className="font-semibold text-[var(--pay)]">Last sale paid</div>
-              <div className="mono text-[var(--muted)] mt-0.5">
-                {lastSale.invoiceNo} · {currency} {lastSale.total.toFixed(2)}
-              </div>
-            </div>
-          )}
-
-          <p className="mt-auto pt-2 text-[10px] text-[var(--muted)] leading-relaxed">
-            F1 shortcuts · scan stays focused for full keyboard sell
-          </p>
-        </div>
-      </aside>
+      <PosCheckoutAside
+        currency={currency}
+        itemCount={itemCount}
+        canCharge={canCharge && !checkout.isPending}
+        subTotal={subTotal}
+        discountPct={discountPct}
+        discountAmount={discountAmount}
+        vatPercent={vatPercent}
+        vatLabel={vatLabel}
+        inclusive={inclusive}
+        taxAmount={taxAmount}
+        total={total}
+        paymentMethod={paymentMethod}
+        checkoutPending={checkout.isPending}
+        cartEmpty={cart.length === 0}
+        lastSale={lastSale}
+        customerName={customerName}
+        customerMobile={customerMobile}
+        memberHint={memberHint}
+        memberRef={memberRef}
+        onClearMember={clearMember}
+        onCustomerMobile={(v) => {
+          setCustomerMobile(v)
+          setMemberHint('')
+        }}
+        onCustomerName={setCustomerName}
+        onLookupMember={() => void lookupMember()}
+        onDiscount={setDiscountPct}
+        onPay={setPaymentMethod}
+        onCharge={() => charge()}
+        onClearCart={clearCart}
+        onPrintSlip={printLastSlip}
+        onFocusScan={focusScan}
+      />
 
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--line)] bg-white p-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
         <div className="flex gap-2 items-stretch">
@@ -688,7 +558,7 @@ export default function PosPage() {
             Card
           </button>
           <button
-            disabled={!canCharge}
+            disabled={!canCharge || checkout.isPending}
             onClick={() => charge()}
             className="btn btn-pay min-w-[120px] flex-col !gap-0 !py-2"
           >
